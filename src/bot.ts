@@ -1,74 +1,37 @@
-import Mineflayer from 'mineflayer';
-import { sleep, getRandom } from "./utils.ts";
-import CONFIG from "../config.json" assert {type: 'json'};
+bot.once('spawn', () => {
+	const registerAndLogin = async (): Promise<void> => {
+		await sleep(1000); // small delay after spawn
 
-let loop: NodeJS.Timeout;
-let bot: Mineflayer.Bot;
+		bot.chat('/register AlwaysOnline34');
+		await sleep(1500); // wait for register to process
 
-const disconnect = (): void => {
-	clearInterval(loop);
-	bot?.quit?.();
-	bot?.end?.();
-};
-const reconnect = async (): Promise<void> => {
-	console.log(`Trying to reconnect in ${CONFIG.action.retryDelay / 1000} seconds...\n`);
+		bot.chat('/login AlwaysOnline34');
+	};
 
-	disconnect();
-	await sleep(CONFIG.action.retryDelay);
-	createBot();
-	return;
-};
+	registerAndLogin();
 
-const createBot = (): void => {
-	bot = Mineflayer.createBot({
-		host: CONFIG.client.host,
-		port: +CONFIG.client.port,
-		username: CONFIG.client.username
-	} as const);
+	const changePos = async (): Promise<void> => {
+		const lastAction = getRandom(CONFIG.action.commands) as Mineflayer.ControlState;
+		const halfChance: boolean = Math.random() < 0.5;
 
+		console.debug(`${lastAction}${halfChance ? " with sprinting" : ''}`);
 
-	bot.once('error', error => {
-		console.error(`AFKBot got an error: ${error}`);
-	});
-	bot.once('kicked', rawResponse => {
-		console.error(`\n\nAFKbot is disconnected: ${rawResponse}`);
-	});
-	bot.once('end', () => void reconnect());
+		bot.setControlState('sprint', halfChance);
+		bot.setControlState(lastAction, true);
 
-	bot.once('spawn', () => {
-		const changePos = async (): Promise<void> => {
-			const lastAction = getRandom(CONFIG.action.commands) as Mineflayer.ControlState;
-			const halfChance: boolean = Math.random() < 0.5? true : false; // 50% chance to sprint
+		await sleep(CONFIG.action.holdDuration);
+		bot.clearControlStates();
+	};
 
-			console.debug(`${lastAction}${halfChance? " with sprinting" : ''}`);
+	const changeView = async (): Promise<void> => {
+		const yaw = (Math.random() * Math.PI) - (0.5 * Math.PI),
+			pitch = (Math.random() * Math.PI) - (0.5 * Math.PI);
 
-			bot.setControlState('sprint', halfChance);
-			bot.setControlState(lastAction, true); // starts the selected random action
+		await bot.look(yaw, pitch, false);
+	};
 
-			await sleep(CONFIG.action.holdDuration);
-			bot.clearControlStates();
-			return;
-		};
-		const changeView = async (): Promise<void> => {
-			const yaw = (Math.random() * Math.PI) - (0.5 * Math.PI),
-				pitch = (Math.random() * Math.PI) - (0.5 * Math.PI);
-			
-			await bot.look(yaw, pitch, false);
-			return;
-		};
-		
-		loop = setInterval(() => {
-			changeView();
-			changePos();
-		}, CONFIG.action.holdDuration);
-	});
-	bot.once('login', () => {
-		console.log(`AFKBot logged in ${bot.username}\n\n`);
-	});
-};
-
-
-
-export default (): void => {
-	createBot();
-};
+	loop = setInterval(() => {
+		changeView();
+		changePos();
+	}, CONFIG.action.holdDuration);
+});
