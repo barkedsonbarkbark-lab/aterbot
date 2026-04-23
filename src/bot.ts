@@ -1,37 +1,90 @@
-bot.once('spawn', () => {
-	const registerAndLogin = async (): Promise<void> => {
-		await sleep(1000); // small delay after spawn
+import Mineflayer from 'mineflayer';
+import { sleep, getRandom } from "./utils.ts";
+import CONFIG from "../config.json" assert { type: 'json' };
 
-		bot.chat('/register AlwaysOnline34');
-		await sleep(1500); // wait for register to process
+let loop: NodeJS.Timeout;
+let bot: Mineflayer.Bot;
 
-		bot.chat('/login AlwaysOnline34');
-	};
+const disconnect = (): void => {
+	clearInterval(loop);
+	bot?.quit?.();
+	bot?.end?.();
+};
 
-	registerAndLogin();
+const reconnect = async (): Promise<void> => {
+	console.log(`Trying to reconnect in ${CONFIG.action.retryDelay / 1000} seconds...\n`);
 
-	const changePos = async (): Promise<void> => {
-		const lastAction = getRandom(CONFIG.action.commands) as Mineflayer.ControlState;
-		const halfChance: boolean = Math.random() < 0.5;
+	disconnect();
+	await sleep(CONFIG.action.retryDelay);
+	createBot();
+};
 
-		console.debug(`${lastAction}${halfChance ? " with sprinting" : ''}`);
+const createBot = (): void => {
+	bot = Mineflayer.createBot({
+		host: CONFIG.client.host,
+		port: +CONFIG.client.port,
+		username: CONFIG.client.username
+	} as const);
 
-		bot.setControlState('sprint', halfChance);
-		bot.setControlState(lastAction, true);
+	bot.once('error', error => {
+		console.error(`AFKBot got an error: ${error}`);
+	});
 
-		await sleep(CONFIG.action.holdDuration);
-		bot.clearControlStates();
-	};
+	bot.once('kicked', rawResponse => {
+		console.error(`\n\nAFKbot is disconnected: ${rawResponse}`);
+	});
 
-	const changeView = async (): Promise<void> => {
-		const yaw = (Math.random() * Math.PI) - (0.5 * Math.PI),
-			pitch = (Math.random() * Math.PI) - (0.5 * Math.PI);
+	bot.once('end', () => void reconnect());
 
-		await bot.look(yaw, pitch, false);
-	};
+	bot.once('spawn', () => {
+		// 🔐 Register + Login
+		const registerAndLogin = async (): Promise<void> => {
+			await sleep(1000);
 
-	loop = setInterval(() => {
-		changeView();
-		changePos();
-	}, CONFIG.action.holdDuration);
-});
+			bot.chat('/register AlwaysOnline34');
+			await sleep(1500);
+
+			bot.chat('/login AlwaysOnline34');
+		};
+
+		registerAndLogin();
+
+		// 🎮 Movement
+		const changePos = async (): Promise<void> => {
+			const lastAction = getRandom(CONFIG.action.commands) as Mineflayer.ControlState;
+			const halfChance = Math.random() < 0.5;
+
+			console.debug(`${lastAction}${halfChance ? " with sprinting" : ''}`);
+
+			bot.setControlState('sprint', halfChance);
+			bot.setControlState(lastAction, true);
+
+			await sleep(CONFIG.action.holdDuration);
+			bot.clearControlStates();
+		};
+
+		// 👀 View movement
+		const changeView = async (): Promise<void> => {
+			const yaw = (Math.random() * Math.PI) - (0.5 * Math.PI);
+			const pitch = (Math.random() * Math.PI) - (0.5 * Math.PI);
+
+			await bot.look(yaw, pitch, false);
+		};
+
+		loop = setInterval(() => {
+			changeView();
+			changePos();
+		}, CONFIG.action.holdDuration);
+	});
+
+	bot.once('login', () => {
+		console.log(`AFKBot logged in ${bot.username}\n\n`);
+	});
+};
+
+// ✅ THIS is what fixes your error
+const initBot = (): void => {
+	createBot();
+};
+
+export default initBot;
