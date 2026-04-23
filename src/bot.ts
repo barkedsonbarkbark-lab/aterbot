@@ -21,10 +21,11 @@ const reconnect = async (): Promise<void> => {
 
 const createBot = (): void => {
 	bot = Mineflayer.createBot({
-		host: CONFIG.client.host,
-		port: +CONFIG.client.port,
-		username: CONFIG.client.username
-	} as const);
+	host: CONFIG.client.host,
+	port: +CONFIG.client.port,
+	username: CONFIG.client.username, // your Microsoft email
+	auth: "offline"
+} as const);
 
 	bot.once('error', error => {
 		console.error(`AFKBot got an error: ${error}`);
