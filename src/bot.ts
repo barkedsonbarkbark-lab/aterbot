@@ -23,6 +23,28 @@ const reconnect = async (): Promise<void> => {
 	createBot();
 };
 
+// 👀 View movement
+const changeView = async (): Promise<void> => {
+	const yaw = (Math.random() * Math.PI) - (0.5 * Math.PI);
+	const pitch = (Math.random() * Math.PI) - (0.5 * Math.PI);
+
+	await bot.look(yaw, pitch, false);
+};
+
+// 🎮 Movement
+const changePos = async (): Promise<void> => {
+	const lastAction = getRandom(CONFIG.action.commands) as Mineflayer.ControlState;
+	const halfChance = Math.random() < 0.5;
+
+	console.debug(`${lastAction}${halfChance ? " with sprinting" : ''}`);
+
+	bot.setControlState('sprint', halfChance);
+	bot.setControlState(lastAction, true);
+
+	await sleep(CONFIG.action.holdDuration);
+	bot.clearControlStates();
+};
+
 const createBot = (): void => {
 	bot = Mineflayer.createBot({
 	host: CONFIG.client.host,
@@ -41,7 +63,7 @@ const createBot = (): void => {
 
 	bot.once('end', () => void reconnect());
 
-	bot.once('spawn', () => {
+  bot.once('spawn', () => {
 		// 🔐 Register + Login
 		const registerAndLogin = async (): Promise<void> => {
 			await sleep(1000);
@@ -53,28 +75,6 @@ const createBot = (): void => {
 		};
 
 		registerAndLogin();
-
-		// 🎮 Movement
-		const changePos = async (): Promise<void> => {
-			const lastAction = getRandom(CONFIG.action.commands) as Mineflayer.ControlState;
-			const halfChance = Math.random() < 0.5;
-
-			console.debug(`${lastAction}${halfChance ? " with sprinting" : ''}`);
-
-			bot.setControlState('sprint', halfChance);
-			bot.setControlState(lastAction, true);
-
-			await sleep(CONFIG.action.holdDuration);
-			bot.clearControlStates();
-		};
-
-		// 👀 View movement
-		const changeView = async (): Promise<void> => {
-			const yaw = (Math.random() * Math.PI) - (0.5 * Math.PI);
-			const pitch = (Math.random() * Math.PI) - (0.5 * Math.PI);
-
-			await bot.look(yaw, pitch, false);
-		};
 
 		if (!isControlMode) {
 			loop = setInterval(() => {

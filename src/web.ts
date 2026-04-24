@@ -1,5 +1,4 @@
 import HTTP from 'node:http';
-import { parse } from 'url';
 import { emitter } from './events.ts';
 
 const PORT = process.PORT || 5500;
@@ -7,13 +6,13 @@ const clients = new Set<HTTP.ServerResponse>();
 
 const server = HTTP.createServer((request, response) => {
 	if (request.url?.startsWith('/command')) {
-		const query = parse(request.url, true).query;
-		emitter.emit('command', query.cmd);
+		const url = new URL(request.url, `http://${request.headers.host}`);
+		emitter.emit('command', url.searchParams.get('cmd'));
 		response.writeHead(200);
 		response.end('OK');
 	} else if (request.url?.startsWith('/mode')) {
-		const query = parse(request.url, true).query;
-		emitter.emit('setMode', query.mode);
+		const url = new URL(request.url, `http://${request.headers.host}`);
+		emitter.emit('setMode', url.searchParams.get('mode'));
 		response.writeHead(200);
 		response.end('OK');
 	} else if (request.url === '/stream') {
