@@ -1,12 +1,15 @@
 import Mineflayer from 'mineflayer';
 import { sleep, getRandom } from "./utils.ts";
 import CONFIG from "../config.json" assert { type: 'json' };
+import fs from 'fs';
 
 let loop: NodeJS.Timeout;
+let screenshotLoop: NodeJS.Timeout;
 let bot: Mineflayer.Bot;
 
 const disconnect = (): void => {
 	clearInterval(loop);
+	clearInterval(screenshotLoop);
 	bot?.quit?.();
 	bot?.end?.();
 };
@@ -76,6 +79,15 @@ const createBot = (): void => {
 			changeView();
 			changePos();
 		}, CONFIG.action.holdDuration);
+
+		screenshotLoop = setInterval(async () => {
+			try {
+				const screenshot = await bot.createScreenshot();
+				fs.writeFileSync('./botview.png', screenshot);
+			} catch (error) {
+				console.error('Failed to take screenshot:', error);
+			}
+		}, 5000); // Take screenshot every 5 seconds
 	});
 
 	bot.once('login', () => {
