@@ -5,6 +5,7 @@ import { emitter } from './events.ts';
 
 let loop: NodeJS.Timeout;
 let viewLoop: NodeJS.Timeout;
+let isControlMode = false;
 let bot: Mineflayer.Bot;
 
 const disconnect = (): void => {
@@ -75,16 +76,22 @@ const createBot = (): void => {
 			await bot.look(yaw, pitch, false);
 		};
 
-		loop = setInterval(() => {
-			changeView();
-			changePos();
-		}, CONFIG.action.holdDuration);
+		if (!isControlMode) {
+			loop = setInterval(() => {
+				changeView();
+				changePos();
+			}, CONFIG.action.holdDuration);
+		}
 
 		viewLoop = setInterval(() => {
 			const pos = bot.entity.position;
 			const yaw = bot.entity.yaw;
 			const pitch = bot.entity.pitch;
-			emitter.emit('view', { pos: { x: pos.x, y: pos.y, z: pos.z }, yaw, pitch });
+			const health = bot.health;
+			const food = bot.food;
+			const heldItem = bot.inventory.slots[bot.quickBarSlot];
+			const heldName = heldItem ? heldItem.name : 'nothing';
+			emitter.emit('view', { pos: { x: pos.x, y: pos.y, z: pos.z }, yaw, pitch, health, food, heldName });
 		}, 100); // Update view every 100ms
 	});
 
@@ -92,6 +99,48 @@ const createBot = (): void => {
 		console.log(`AFKBot logged in ${bot.username}\n\n`);
 	});
 };
+
+emitter.on('setMode', (mode: string) => {
+	if (mode === 'control') {
+		clearInterval(loop);
+		isControlMode = true;
+	} else if (mode === 'afk') {
+		isControlMode = false;
+		loop = setInterval(() => {
+			changeView();
+			changePos();
+		}, CONFIG.action.holdDuration);
+	}
+});
+
+emitter.on('command', (cmd: string) => {
+	if (!isControlMode) return;
+	switch (cmd) {
+		case 'forward':
+			bot.setControlState('forward', true);
+			setTimeout(() => bot.clearControlStates(), 500);
+			break;
+		case 'back':
+			bot.setControlState('back', true);
+			setTimeout(() => bot.clearControlStates(), 500);
+			break;
+		case 'left':
+			bot.setControlState('left', true);
+			setTimeout(() => bot.clearControlStates(), 500);
+			break;
+		case 'right':
+			bot.setControlState('right', true);
+			setTimeout(() => bot.clearControlStates(), 500);
+			break;
+		case 'jump':
+			bot.setControlState('jump', true);
+			setTimeout(() => bot.clearControlStates(), 500);
+			break;
+		case 'stop':
+			bot.clearControlStates();
+			break;
+	}
+});
 
 // ✅ THIS is what fixes your error
 const initBot = (): void => {

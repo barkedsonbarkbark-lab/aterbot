@@ -1,11 +1,22 @@
 import HTTP from 'node:http';
+import { parse } from 'url';
 import { emitter } from './events.ts';
 
 const PORT = process.PORT || 5500;
 const clients = new Set<HTTP.ServerResponse>();
 
 const server = HTTP.createServer((request, response) => {
-	if (request.url === '/stream') {
+	if (request.url?.startsWith('/command')) {
+		const query = parse(request.url, true).query;
+		emitter.emit('command', query.cmd);
+		response.writeHead(200);
+		response.end('OK');
+	} else if (request.url?.startsWith('/mode')) {
+		const query = parse(request.url, true).query;
+		emitter.emit('setMode', query.mode);
+		response.writeHead(200);
+		response.end('OK');
+	} else if (request.url === '/stream') {
 		response.writeHead(200, {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
@@ -21,12 +32,23 @@ const server = HTTP.createServer((request, response) => {
 			"Content-Type": "text/html"
 		} as const);
 		response.end(`<h3>Bot View</h3><div id="view" style="font-family: monospace; font-size: 18px;">Waiting for view data...</div>
+<h3>Controls</h3>
+<button onclick="fetch('/mode?mode=afk')">AFK Mode</button>
+<button onclick="fetch('/mode?mode=control')">Control Mode</button><br>
+<button onclick="fetch('/command?cmd=forward')">Forward</button>
+<button onclick="fetch('/command?cmd=back')">Back</button>
+<button onclick="fetch('/command?cmd=left')">Left</button>
+<button onclick="fetch('/command?cmd=right')">Right</button>
+<button onclick="fetch('/command?cmd=jump')">Jump</button>
+<button onclick="fetch('/command?cmd=stop')">Stop</button>
 <script>
 const es = new EventSource('/stream');
 es.onmessage = e => {
 	const data = JSON.parse(e.data);
 	document.getElementById('view').innerText = \`Position: (\${data.pos.x.toFixed(2)}, \${data.pos.y.toFixed(2)}, \${data.pos.z.toFixed(2)})
-Yaw: \${data.yaw.toFixed(2)}, Pitch: \${data.pitch.toFixed(2)}\`;
+Yaw: \${data.yaw.toFixed(2)}, Pitch: \${data.pitch.toFixed(2)}
+Health: \${data.health}/20, Food: \${data.food}/20
+Currently holding: \${data.heldName}\`;
 };
 </script>`);
 	}
