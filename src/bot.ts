@@ -88,7 +88,7 @@ const createBot = (): void => {
 			} catch (error) {
 				console.error('Failed to take screenshot:', error);
 			}
-		}, 1000); // Take screenshot every 1 second for real-time
+		}, 100); // Take screenshot every 100ms for ~10 fps video-like
 	});
 
 	bot.once('login', () => {
