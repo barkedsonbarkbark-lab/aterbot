@@ -4,13 +4,12 @@ import CONFIG from "../config.json" assert { type: 'json' };
 import { emitter } from './events.ts';
 
 let loop: NodeJS.Timeout;
-let screenshotLoop: NodeJS.Timeout;
-let latestScreenshot: Buffer | null = null;
+let viewLoop: NodeJS.Timeout;
 let bot: Mineflayer.Bot;
 
 const disconnect = (): void => {
 	clearInterval(loop);
-	clearInterval(screenshotLoop);
+	clearInterval(viewLoop);
 	bot?.quit?.();
 	bot?.end?.();
 };
@@ -81,14 +80,12 @@ const createBot = (): void => {
 			changePos();
 		}, CONFIG.action.holdDuration);
 
-		screenshotLoop = setInterval(async () => {
-			try {
-				latestScreenshot = await bot.createScreenshot();
-				emitter.emit('screenshot', latestScreenshot);
-			} catch (error) {
-				console.error('Failed to take screenshot:', error);
-			}
-		}, 100); // Take screenshot every 100ms for ~10 fps video-like
+		viewLoop = setInterval(() => {
+			const pos = bot.entity.position;
+			const yaw = bot.entity.yaw;
+			const pitch = bot.entity.pitch;
+			emitter.emit('view', { pos: { x: pos.x, y: pos.y, z: pos.z }, yaw, pitch });
+		}, 100); // Update view every 100ms
 	});
 
 	bot.once('login', () => {
